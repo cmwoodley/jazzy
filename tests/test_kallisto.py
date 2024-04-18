@@ -9,6 +9,7 @@ from tests.store import pyridine
 from jazzy.core import get_charges_from_kallisto_molecule
 from jazzy.core import kallisto_molecule_from_rdkit_molecule
 from jazzy.core import rdkit_molecule_from_smiles
+from jazzy.core import get_charges_by_method
 from jazzy.exception import KallistoError
 
 
@@ -88,3 +89,31 @@ def test_kallisto_from_rdkit_molecule_with_name():
     rdkit_atoms = CalcNumAtoms(rdkit_molecule)
     kallisto_atoms = kallisto_molecule.get_number_of_atoms()
     assert rdkit_atoms == kallisto_atoms
+
+def test_get_charges_by_method():
+    smiles = "c1ccccn1" # Pyridine
+    rdkit_molecule = rdkit_molecule_from_smiles(smiles, minimisation_method="MMFF94")
+    kallisto_molecule = kallisto_molecule_from_rdkit_molecule(rdkit_molecule)
+    charge_method = "kallisto"
+    want = [0.045680464157738396, -0.0957233733338991, -0.09286581882421709, -0.09572340650673523, 0.045680551016580355, -0.38330394049694483, 0.12270838091939198, 0.10919952318565886, 0.11243965258629614, 0.10919954271115259, 0.1227084245849779]
+    got = get_charges_by_method(rdkit_molecule, kallisto_molecule, charge_method)
+    assert np.isclose(got[0], want[0])
+    assert np.isclose(got[1], want[1])
+    assert np.isclose(got[2], want[2])
+
+    charge_method = "MMFF94"
+    want = [0.16, -0.15, -0.15, -0.15, 0.16, -0.62, 0.15, 0.15, 0.15, 0.15, 0.15]
+    got = get_charges_by_method(rdkit_molecule, kallisto_molecule, charge_method)
+    assert np.isclose(got[0], want[0])
+    assert np.isclose(got[1], want[1])
+    assert np.isclose(got[2], want[2])
+
+def test_get_charges_by_method_invalid_method():
+    """It exits with a ValueError when a nonvalid method is entered."""
+    with pytest.raises(Exception) as error:
+        smiles = "CC"
+        charge_method = "MMFF95"
+        rdkit_molecule = rdkit_molecule_from_smiles(smiles, minimisation_method="MMFF94")
+        kallisto_molecule = kallisto_molecule_from_rdkit_molecule(rdkit_molecule)
+        charges = get_charges_by_method(rdkit_molecule, kallisto_molecule, charge_method)
+    assert error.value.args[0] == "Select a valid charge calculation method ['kallisto', 'MMFF94']"

@@ -4,15 +4,16 @@ import base64
 
 from jazzy.config import Config
 from jazzy.config import MINIMISATION_METHOD
+from jazzy.config import CHARGES_METHOD
 from jazzy.config import ROUNDING_DIGITS
 from jazzy.core import calculate_delta_apolar
 from jazzy.core import calculate_delta_interaction
 from jazzy.core import calculate_delta_polar
 from jazzy.core import calculate_polar_strength_map
-from jazzy.core import get_charges_from_kallisto_molecule
 from jazzy.core import get_covalent_atom_idxs
 from jazzy.core import kallisto_molecule_from_rdkit_molecule
 from jazzy.core import rdkit_molecule_from_smiles
+from jazzy.core import get_charges_by_method
 from jazzy.exception import exception_handling
 from jazzy.exception import JazzyError
 from jazzy.helpers import condense_atomic_map
@@ -40,7 +41,7 @@ def __smiles_to_molecule_objects(smiles, minimisation_method=MINIMISATION_METHOD
 
 @exception_handling
 def molecular_vector_from_smiles(
-    smiles: str, minimisation_method=MINIMISATION_METHOD, only_strengths=False
+    smiles: str, minimisation_method=MINIMISATION_METHOD, charge_method=CHARGES_METHOD, only_strengths=False
 ):
     """API route to calculate molecular free energy vector.
 
@@ -64,9 +65,9 @@ def molecular_vector_from_smiles(
         smiles, minimisation_method
     )
     atoms_and_nbrs = get_covalent_atom_idxs(rdkit_molecule)
-    kallisto_charges = get_charges_from_kallisto_molecule(kallisto_molecule, 0)
+    charges = get_charges_by_method(rdkit_molecule, kallisto_molecule, charge_method)
     atomic_map = calculate_polar_strength_map(
-        rdkit_molecule, kallisto_molecule, atoms_and_nbrs, kallisto_charges
+        rdkit_molecule, kallisto_molecule, atoms_and_nbrs, charges
     )
     mol_vector = sum_atomic_map(atomic_map)
 
@@ -95,7 +96,7 @@ def molecular_vector_from_smiles(
 
 
 @exception_handling
-def deltag_from_smiles(smiles: str, minimisation_method=MINIMISATION_METHOD):
+def deltag_from_smiles(smiles: str, minimisation_method=MINIMISATION_METHOD, charge_method=CHARGES_METHOD):
     """API route to calculate molecular free energy scalar.
 
     Args:
@@ -112,9 +113,10 @@ def deltag_from_smiles(smiles: str, minimisation_method=MINIMISATION_METHOD):
         smiles, minimisation_method
     )
     atoms_and_nbrs = get_covalent_atom_idxs(rdkit_molecule)
-    kallisto_charges = get_charges_from_kallisto_molecule(kallisto_molecule, 0)
+    atoms_and_nbrs = get_covalent_atom_idxs(rdkit_molecule)
+    charges = get_charges_by_method(rdkit_molecule, kallisto_molecule, charge_method)
     atomic_map = calculate_polar_strength_map(
-        rdkit_molecule, kallisto_molecule, atoms_and_nbrs, kallisto_charges
+        rdkit_molecule, kallisto_molecule, atoms_and_nbrs, charges
     )
 
     # generate free energy scalar
@@ -138,7 +140,7 @@ def deltag_from_smiles(smiles: str, minimisation_method=MINIMISATION_METHOD):
 
 
 @exception_handling
-def atomic_tuples_from_smiles(smiles: str, minimisation_method=MINIMISATION_METHOD):
+def atomic_tuples_from_smiles(smiles: str, minimisation_method=MINIMISATION_METHOD, charge_method=CHARGES_METHOD):
     """API route to generate a tuple representation on the atomic map.
 
     Not recommended if serialization is needed.
@@ -157,15 +159,15 @@ def atomic_tuples_from_smiles(smiles: str, minimisation_method=MINIMISATION_METH
         smiles, minimisation_method
     )
     atoms_and_nbrs = get_covalent_atom_idxs(rdkit_molecule)
-    kallisto_charges = get_charges_from_kallisto_molecule(kallisto_molecule, 0)
+    charges = get_charges_by_method(rdkit_molecule, kallisto_molecule, charge_method)
     atomic_map = calculate_polar_strength_map(
-        rdkit_molecule, kallisto_molecule, atoms_and_nbrs, kallisto_charges
+        rdkit_molecule, kallisto_molecule, atoms_and_nbrs, charges
     )
     return convert_map_to_tuples(atomic_map)
 
 
 @exception_handling
-def atomic_map_from_smiles(smiles: str, minimisation_method=MINIMISATION_METHOD):
+def atomic_map_from_smiles(smiles: str, minimisation_method=MINIMISATION_METHOD, charge_method=CHARGES_METHOD):
     """API route to generate a condensed representation on the atomic map.
 
     Recommended if serialization is needed.
@@ -174,6 +176,8 @@ def atomic_map_from_smiles(smiles: str, minimisation_method=MINIMISATION_METHOD)
     smiles: A molecule SMILES string representation (default '')
     minimisation_method: One of the conformer energy minimisation methods
     as available in RDKit (available is 'MMFF94', 'MMFF94s', or 'UFF') (default None)
+    charge_method: Methods of calculating partial charges 
+    (available is 'kallisto', or 'mmff94') (default Kallisto)
 
     Returns:
     Condensed representation of the atomic map.
@@ -184,9 +188,9 @@ def atomic_map_from_smiles(smiles: str, minimisation_method=MINIMISATION_METHOD)
         smiles, minimisation_method
     )
     atoms_and_nbrs = get_covalent_atom_idxs(rdkit_molecule)
-    kallisto_charges = get_charges_from_kallisto_molecule(kallisto_molecule, 0)
+    charges = get_charges_by_method(rdkit_molecule, kallisto_molecule, charge_method)
     atomic_map = calculate_polar_strength_map(
-        rdkit_molecule, kallisto_molecule, atoms_and_nbrs, kallisto_charges
+        rdkit_molecule, kallisto_molecule, atoms_and_nbrs, charges
     )
     return condense_atomic_map(atomic_map)
 
@@ -195,6 +199,7 @@ def atomic_map_from_smiles(smiles: str, minimisation_method=MINIMISATION_METHOD)
 def atomic_strength_vis_from_smiles(
     smiles: str,
     minimisation_method=MINIMISATION_METHOD,
+    charge_method=CHARGES_METHOD,
     encode=False,
     fig_size=(500, 500),
     flatten_molecule=False,
@@ -223,9 +228,9 @@ def atomic_strength_vis_from_smiles(
         smiles, minimisation_method
     )
     atoms_and_nbrs = get_covalent_atom_idxs(rdkit_molecule)
-    kallisto_charges = get_charges_from_kallisto_molecule(kallisto_molecule, 0)
+    charges = get_charges_by_method(rdkit_molecule, kallisto_molecule, charge_method)
     atomic_map = calculate_polar_strength_map(
-        rdkit_molecule, kallisto_molecule, atoms_and_nbrs, kallisto_charges
+        rdkit_molecule, kallisto_molecule, atoms_and_nbrs, charges
     )
     img_txt = depict_strengths(
         rdkit_molecule=rdkit_molecule,

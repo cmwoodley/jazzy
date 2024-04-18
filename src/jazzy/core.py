@@ -12,9 +12,11 @@ from rdkit.Chem import GetPeriodicTable
 from rdkit.Chem import PeriodicTable
 from rdkit.Chem import rdchem
 from rdkit.Chem import rdMolDescriptors
+from rdkit.Chem import rdForceFieldHelpers
 
 from jazzy.config import ROUNDING_DIGITS
 from jazzy.exception import KallistoError
+from jazzy.exception import MMFFChargeCalculationError
 from jazzy.exception import NegativeLonePairsError
 from jazzy.logging import logger
 
@@ -160,6 +162,44 @@ def get_charges_from_kallisto_molecule(
     """
     return list(kallisto_molecule.get_eeq(charge=charge))
 
+def get_mmff_charges_from_molecule(
+    rdkit_molecule: Chem.rdchem.Mol
+) -> list:
+    """Calculate MMFF partial charges.
+
+    Args:
+    rdkit_molecule: rdkit molecule
+
+    Returns:
+    List of MMFF atomic partial charges
+
+    Raises:
+    MMFFChargeCalculationError: An error if MMFF property calculation fails.
+
+    """
+
+    props = rdForceFieldHelpers.MMFFGetMoleculeProperties(rdkit_molecule)
+    if props == None:
+        raise MMFFChargeCalculationError(
+            "MMFF property calculation failed for the input: {}".format(
+                Chem.MolToSmiles(rdkit_molecule)
+            )
+        )
+    charges = []
+    for atom in rdkit_molecule.GetAtoms():
+        charges.append(props.GetMMFFPartialCharge(atom.GetIdx()))
+
+    return charges
+
+def get_charges_by_method(rdkit_molecule, kallisto_molecule, charge_method):
+    """Get charges based on the specified method."""
+    valid_methods = ["kallisto", "MMFF94"]
+    if charge_method == valid_methods[0]:
+        return get_charges_from_kallisto_molecule(kallisto_molecule, 0)
+    elif charge_method == valid_methods[1]:
+        return get_mmff_charges_from_molecule(rdkit_molecule)
+    else:
+        raise ValueError(f"Select a valid charge calculation method {valid_methods}")
 
 def calculate_polar_strength_map(
     rdkit_molecule: Chem.rdchem.Mol,
@@ -601,3 +641,4 @@ def calculate_delta_interaction(
             s_partner = interaction_strength(vc, mol_map, expa)
             dgi += f * s_origin * s_partner
     return gi * dgi
+

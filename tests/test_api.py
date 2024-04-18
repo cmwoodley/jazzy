@@ -20,15 +20,17 @@ def test_api_molecular_vector_from_smiles():
     smiles = "CC"
     # first only hydrogen bond strength
     minimisation_method = "MMFF94"
+    charge_method = "kallisto"
     only_strengths = True
-    vector = molecular_vector_from_smiles(smiles, minimisation_method, only_strengths)
+    vector = molecular_vector_from_smiles(smiles, minimisation_method, charge_method, only_strengths)
     assert len(vector.values()) == 3
     assert np.isclose(vector["sdc"], 0.5304)
     assert np.isclose(vector["sdx"], 0.0)
     # first only hydrogen bond strength
     minimisation_method = "MMFF94"
+    charge_method = "kallisto"
     only_strengths = False
-    vector = molecular_vector_from_smiles(smiles, minimisation_method, only_strengths)
+    vector = molecular_vector_from_smiles(smiles, minimisation_method, charge_method, only_strengths)
     assert len(vector.values()) == 6
     assert np.isclose(vector["sdc"], 0.5304)
     assert np.isclose(vector["sdx"], 0.0)
@@ -38,8 +40,9 @@ def test_api_molecular_vector_from_smiles():
 
     smiles = "C(Cl)#C"
     minimisation_method = "MMFF94"
+    charge_method ="kallisto"
     only_strengths = False
-    vector = molecular_vector_from_smiles(smiles, minimisation_method, only_strengths)
+    vector = molecular_vector_from_smiles(smiles, minimisation_method, charge_method, only_strengths)
     assert len(vector.values()) == 6
     assert np.isclose(vector["sdc"], 0.7748)
     assert np.isclose(vector["sdx"], 0.0)
@@ -47,14 +50,39 @@ def test_api_molecular_vector_from_smiles():
     assert np.isclose(vector["dgp"], -4.0502)
     assert np.isclose(vector["dgtot"], -4.5717)
 
+    smiles = "C(Cl)#C"
+    minimisation_method = "MMFF94"
+    charge_method ="kallisto"
+    only_strengths = False
+    vector = molecular_vector_from_smiles(smiles, minimisation_method, charge_method, only_strengths)
+    assert len(vector.values()) == 6
+    assert np.isclose(vector["sdc"], 0.7748)
+    assert np.isclose(vector["sdx"], 0.0)
+    assert np.isclose(vector["dga"], -0.5215)
+    assert np.isclose(vector["dgp"], -4.0502)
+    assert np.isclose(vector["dgtot"], -4.5717)
+
+    smiles = "c1cccnc1N"
+    minimisation_method = "MMFF94"
+    # with MMFF Charge method
+    charge_method ="MMFF94"
+    only_strengths = False
+    vector = molecular_vector_from_smiles(smiles, minimisation_method, charge_method, only_strengths)
+    assert len(vector.values()) == 6
+    assert np.isclose(vector["sdc"], 2.7409)
+    assert np.isclose(vector["sdx"], 2.439)
+    assert np.isclose(vector["dga"], -3.0609)
+    assert np.isclose(vector["dgp"], -45.3113)
+    assert np.isclose(vector["dgtot"], -48.3723)
 
 def test_api_molecular_vector_from_smiles_fails_for_invalid_smiles():
     """Correcly fail for incorrect smiles."""
     smiles = "xxx"
     minimisation_method = "MMFF94"
+    charge_method = "kallisto"
     only_strengths = True
     with pytest.raises(JazzyError) as error:
-        molecular_vector_from_smiles(smiles, minimisation_method, only_strengths)
+        molecular_vector_from_smiles(smiles, minimisation_method, charge_method, only_strengths)
     assert error.value.args[0] == "The SMILES 'xxx' could not be processed."
 
 
@@ -62,9 +90,10 @@ def test_api_molecular_vector_from_smiles_fails_for_empty_smiles():
     """Correcly fail for empty smiles."""
     smiles = ""
     minimisation_method = "MMFF94"
+    charge_method = "kallisto"
     only_strengths = True
     with pytest.raises(JazzyError) as error:
-        molecular_vector_from_smiles(smiles, minimisation_method, only_strengths)
+        molecular_vector_from_smiles(smiles, minimisation_method, charge_method, only_strengths)
     assert error.value.args[0] == "An empty SMILES string was passed."
 
 
@@ -72,9 +101,10 @@ def test_api_molecular_vector_from_smiles_complex_numbers():
     """Exception for structure containing negative lone pairs."""
     smiles = "C12C3C4C5C1[Fe]23456789C%10C6C7C8C9%10"
     minimisation_method = "MMFF94"
+    charge_method = "kallisto"
     only_strengths = False
     with pytest.raises(JazzyError) as error:
-        molecular_vector_from_smiles(smiles, minimisation_method, only_strengths)
+        molecular_vector_from_smiles(smiles, minimisation_method, charge_method, only_strengths)
     assert (
         "The input compound contains atoms with negative lone pairs"
         in error.value.args[0]
@@ -86,7 +116,8 @@ def test_deltag_from_smiles():
     smiles = "CC"
     # first only hydrogen bond strength
     minimisation_method = "MMFF94"
-    scalar = deltag_from_smiles(smiles, minimisation_method)
+    charge_method="kallisto"
+    scalar = deltag_from_smiles(smiles, minimisation_method, charge_method=charge_method)
     assert np.isclose(scalar, 4.599630151706878)
 
 
@@ -115,7 +146,8 @@ def test_atomic_tuples_from_smiles():
     smiles = "C1CC2=C3C(=CC=C2)C(=CN3C1)"
     # first only hydrogen bond strength
     minimisation_method = "MMFF94"
-    tuple_map = atomic_tuples_from_smiles(smiles, minimisation_method)
+    charge_method = "kallisto"
+    tuple_map = atomic_tuples_from_smiles(smiles, minimisation_method, charge_method)
     assert tuple_map[0][0] == ("z", 6)
     assert tuple_map[0][1] == ("q", 0)
     assert tuple_map[0][2] == ("eeq", -0.1556)
@@ -149,7 +181,8 @@ def test_atomic_map_from_smiles():
     smiles = "C1CC2=C3C(=CC=C2)C(=CN3C1)"
     # first only hydrogen bond strength
     minimisation_method = "MMFF94"
-    condensed_map = atomic_map_from_smiles(smiles, minimisation_method)
+    charge_method = "kallisto"
+    condensed_map = atomic_map_from_smiles(smiles, minimisation_method, charge_method=charge_method)
     assert np.isclose(condensed_map[0]["alp"], 7.4365)
     assert np.isclose(condensed_map[0]["eeq"], -0.1556)
     assert condensed_map[0]["hyb"] == "sp3"
@@ -167,9 +200,11 @@ def test_atomic_strength_vis_from_smiles():
     """It creates an SVG image from SMILES."""
     smiles = "C1CC2=C3C(=CC=C2)C(=CN3C1)"
     minimisation_method = "MMFF94"
+    charge_method = "kallisto"
     img_txt = atomic_strength_vis_from_smiles(
         smiles=smiles,
         minimisation_method=minimisation_method,
+        charge_method=charge_method,
         encode=True,
         fig_size=(100, 100),
         flatten_molecule=False,
@@ -187,3 +222,4 @@ def test_atomic_strength_vis_from_smiles():
     # first 10 characters in base64 encoded image
     want = b"PD94bWwgdm"
     assert got == want
+

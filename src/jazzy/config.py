@@ -2,6 +2,7 @@
 # src/jazzy/config.py
 
 MINIMISATION_METHOD = None
+CHARGES_METHOD = "kallisto"
 ROUNDING_DIGITS = 4
 ANNOTATION_FONT_SCALE = 0.7
 

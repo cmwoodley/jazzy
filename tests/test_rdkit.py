@@ -5,7 +5,8 @@ from jazzy.core import get_all_neighbors
 from jazzy.core import get_covalent_atom_idxs
 from jazzy.core import get_lone_pairs
 from jazzy.core import rdkit_molecule_from_smiles
-
+from jazzy.core import get_mmff_charges_from_molecule
+from jazzy.exception import MMFFChargeCalculationError
 
 def rdkit_molecule_atomic_numbers(rdkit_molecule):
     """Return atomic number list for RDKit molecule."""
@@ -122,3 +123,25 @@ def test_calculate_correct_all_neighbours_for_atom():
     assert sorted(alpha[8]) == sorted(want[0])
     assert sorted(beta[8]) == sorted(want[1])
     assert sorted(gamma[8]) == sorted(want[2])
+
+
+def test_get_mmff_charges():
+    """It calculates the correct atomic MMFF partial charges."""
+    smiles = "c1ccccn1" # Pyridine
+    rdkit_molecule = rdkit_molecule_from_smiles(smiles)
+    want = [0.16, -0.15, -0.15, -0.15, 0.16, -0.62, 0.15, 0.15, 0.15, 0.15, 0.15]
+    got = get_mmff_charges_from_molecule(rdkit_molecule)
+    assert want[0] == got[0]
+    assert want[1] == got[1]
+    assert want[2] == got[2]
+
+def test_get_mmff_charges_bad_molecule():
+    """It raises a MMFFChargeCalculationError when processing molecule without MMFF params."""
+    smiles = "CC[As](=O)(CC)CC"
+    rdkit_molecule = rdkit_molecule_from_smiles(smiles)
+    with pytest.raises(MMFFChargeCalculationError) as error:
+        charges = get_mmff_charges_from_molecule(rdkit_molecule)
+        assert (
+            error.value.args[0] 
+            == "MMFF property calculation failed for the input: [H]C([H])([H])C([H])([H])[As](=O)(C([H])([H])C([H])([H])[H])C([H])([H])C([H])([H])[H]"
+        )

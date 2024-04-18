@@ -19,6 +19,11 @@ class NegativeLonePairsError(Exception):
 
     pass
 
+class MMFFChargeCalculationError(Exception):
+    """Raised when MMFF charge calculation fails."""
+
+    pass
+
 
 def exception_handling(func):
     """Catches core exceptions and raises a JazzyError."""
@@ -26,7 +31,7 @@ def exception_handling(func):
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except (NegativeLonePairsError, KallistoError) as e:
+        except (NegativeLonePairsError, KallistoError, MMFFChargeCalculationError) as e:
             raise JazzyError(str(e))
 
     return wrapper
