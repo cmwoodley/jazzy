@@ -10,6 +10,7 @@ from kallisto.molecule import Molecule
 from kallisto.units import Bohr
 from rdkit import Chem
 from rdkit.Chem import AllChem
+from rdkit.Chem import EState
 from rdkit.Chem import GetPeriodicTable
 from rdkit.Chem import PeriodicTable
 from rdkit.Chem import rdchem
@@ -180,7 +181,7 @@ def get_charges_from_kallisto_molecule(
         List of electronegativity equilibration atomic partial charges
 
     """
-    return list(kallisto_molecule.get_eeq(charge=charge))
+    return list(kallisto_molecule.get_eeq(charge=charge, cm5_charges= False))
 
 
 def calculate_polar_strength_map(
@@ -191,6 +192,7 @@ def calculate_polar_strength_map(
     d=6.1475,
     a=-2.2316,
     t=0.274,
+    m=1.0
 ) -> dict:
     """Calculate the polar strength map.
 
@@ -221,6 +223,8 @@ def calculate_polar_strength_map(
     cns = kallisto_molecule.get_cns(cntype="cov")
     # atomic static polarizabilities
     alps = getPolarizabilities(ats, cns, charges, 0)  # type: ignore
+    # estate indices
+    estate_idxs = list(EState.EStateIndices(rdkit_molecule))
 
     mol_map = dict()
     for idx, atom in enumerate(rdkit_molecule.GetAtoms()):
@@ -233,6 +237,7 @@ def calculate_polar_strength_map(
         eeq = charges[idx]
         hyb = atom.GetHybridization().name.lower()
         alp = alps[idx]
+        es = estate_idxs[idx]
 
         # if Hydrogen -> evaluate donor strength
         if z == 1:
@@ -250,7 +255,7 @@ def calculate_polar_strength_map(
         else:
             nlps = get_lone_pairs(atom)
             if nlps > 0:
-                sa = get_acceptor_atom_strength(idx, atoms_and_nbrs, charges, a, t)
+                sa = get_acceptor_atom_strength(idx, atoms_and_nbrs, charges, alps, a, t, m)#estate_idxs, a, t, m)
 
         # create dict where key is atom index and values are properties
         atom_dict = {
@@ -260,6 +265,7 @@ def calculate_polar_strength_map(
             "alp": round(alp, ROUNDING_DIGITS),
             "hyb": hyb,
             "num_lp": nlps,
+            "es": round(es, ROUNDING_DIGITS),
             "sdc": round(sdc, ROUNDING_DIGITS),
             "sdx": round(sdx, ROUNDING_DIGITS),
             "sa": round(sa, ROUNDING_DIGITS),
@@ -352,21 +358,17 @@ def get_donor_atom_strength(
 
 
 def get_acceptor_atom_strength(
-    atom_idx: int, atoms_and_nbrs: list, charges: list, a=-4.4362, t=0.274
+    atom_idx: int, atoms_and_nbrs: list, charges: list, estate_idxs: list, a=-4.4362, t=0.274, m=1.0
 ) -> float:
     """Acceptor strength calculation - equation 12 and 13."""
-    q, q_delta = calculate_q_and_delta_q(atom_idx, atoms_and_nbrs, charges, t)
+    q, q_delta = calculate_q_and_delta_q_corrected(atom_idx, atoms_and_nbrs, charges, estate_idxs, t, m)
     return a * (q + q_delta)
 
 
 def calculate_q_and_delta_q(
     atom_idx: int, atoms_and_nbrs: list, charges: list, t=0.274
 ):
-    """Calculates charge and delta charge.
-
-    Suitable for both donor and acceptor strength calculations.
-
-    """
+    """Calculates charge and delta for Donor strength calculation."""
     # get idxs and charges
     atom_idxs_dict, q_dict = _get_idxs_and_q_dicts(atom_idx, atoms_and_nbrs, charges)
 
@@ -376,6 +378,38 @@ def calculate_q_and_delta_q(
     )
     return q_dict[ChargeKey.Atom], q_delta
 
+
+def calculate_q_and_delta_q_corrected(
+    atom_idx: int, atoms_and_nbrs: list, charges: list, estate_idxs: list, t=0.274, m=1.0
+):
+    """Calculates corrected charge and delta for Acceptor strength calculation."""
+
+    # modify charges by estate indices
+    charges_modified = modify_charges(charges, estate_idxs, m=m)
+
+    # get idxs and charges
+    atom_idxs_dict, q_dict = _get_idxs_and_q_dicts(atom_idx, atoms_and_nbrs, charges_modified)
+
+    # calculate q delta
+    q_delta = _calculate_q_delta(
+        q_dict[ChargeKey.Alpha], q_dict[ChargeKey.Beta], q_dict[ChargeKey.Gamma], t
+    )
+    return q_dict[ChargeKey.Atom], q_delta
+
+def modify_charges(
+        charges: list, estate_idxs: list, m = 1.0
+):
+    """Modifies charge list using estate indicies"""
+
+    estate_idxs = np.array(estate_idxs)
+
+    #T = m[1]
+    #m = m[0]
+
+    #charges_modified = np.array(charges) + (estate_idxs) / (1 + np.exp(-m * (np.abs(estate_idxs) - T)))
+    charges_modified = np.array(charges) + m * estate_idxs
+
+    return charges_modified
 
 def _get_idxs_and_q_dicts(atom_idx: int, atoms_and_nbrs: list, charges: list):
     """Wraps get_atom_and_nbrs_idxs_dict and _get_q_dict."""

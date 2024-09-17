@@ -42,17 +42,20 @@ def deltag_objective(trial):
 
     """
     # select parameter ranges                     # parameters from the paper
-    gd = trial.suggest_uniform("gd", -30.0, 0.0)  # gd=-139.0
-    ga = trial.suggest_uniform("ga", -20.0, 0.0)  # ga=-32.0
-    g0 = trial.suggest_uniform("g0", 0.0, 3.0)  # g0=5.53
+    gd = trial.suggest_uniform("gd", -150.0, 0.0)  # gd=-139.0
+    ga = trial.suggest_uniform("ga", -50.0, 0.0)  # ga=-32.0
+    g0 = trial.suggest_uniform("g0", 0.0, 10.0)  # g0=5.53
     gs = trial.suggest_uniform("gs", 0.0, 1.0)  # gs=0.031
     gr = trial.suggest_uniform("gr", -6.0, 0.0)  # gr=-4.39
     gpi1 = trial.suggest_uniform("gpi1", -10.0, 0.0)  # gpi1=-1.82
     gpi2 = trial.suggest_uniform("gpi2", -10.0, 0.0)  # gpi2=-1.29
-    gi = trial.suggest_uniform("gi", 0.0, 5.0)  # gi=37.2
+    gi = trial.suggest_uniform("gi", 0.0, 50.0)  # gi=37.2
     f = trial.suggest_uniform("F", 0.1, 0.7)  # f=0.325
-    expd = trial.suggest_uniform("expd", 0.5, 0.7)  # expd=0.68
-    expa = trial.suggest_uniform("expa", 0.3, 0.5)  # expa=0.51
+    m = trial.suggest_uniform("m", 0, 1) 
+    # T = trial.suggest_uniform("T", 0, 20)  
+
+    expd = trial.suggest_uniform("expd", 0.5, 1.0)  # expd=0.68
+    expa = trial.suggest_uniform("expa", 0.3, 1.0)  # expa=0.51
 
     # generate y_true and y_pred
     y_exp = []
@@ -67,7 +70,7 @@ def deltag_objective(trial):
 
         # calculate polar strength map
         atomic_map = calculate_polar_strength_map(
-            rdkit_mol, kallisto_mol, atoms_and_nbrs, charges
+            rdkit_mol, kallisto_mol, atoms_and_nbrs, charges, m=m
         )
 
         # calculate individual terms and finally append their sum
